@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  apicall:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apicall-server
+    ports:
+      - "8080:8080"
+    environment:
+      - APICALL_CONFIG=/app/configs/production.yaml
+      - APICALL_DB_HOST=postgres
+      - APICALL_DB_USER=apicall
+      - APICALL_DB_PASSWORD=apicall123
+      - APICALL_DB_NAME=apicall
+    volumes:
+      - ./configs/production.yaml:/app/configs/production.yaml:ro
+      - asterisk_sounds:/var/lib/asterisk/sounds
+      - asterisk_configs:/etc/asterisk
+      - logs:/var/log/apicall
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - apicall-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: apicall-db
+    environment:
+      POSTGRES_DB: apicall
+      POSTGRES_USER: apicall
+      POSTGRES_PASSWORD: apicall123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apicall -d apicall"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - apicall-network
+
+  asterisk:
+    image: andrius/asterisk:18.0-latest
+    container_name: apicall-asterisk
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5038:5038"
+      - "10000-20000:10000-20000/udp"
+    volumes:
+      - asterisk_configs:/etc/asterisk
+      - asterisk_sounds:/var/lib/asterisk/sounds
+      - logs:/var/log/asterisk
+    environment:
+      ASTERISK_USER: root
+    command: >
+      sh -c "
+        chown -R asterisk:asterisk /var/lib/asterisk/sounds &&
+        chown -R asterisk:asterisk /etc/asterisk &&
+        docker-entrypoint.sh
+      "
+    restart: unless-stopped
+    networks:
+      - apicall-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: apicall-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web:/usr/share/nginx/html:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - apicall
+    restart: unless-stopped
+    networks:
+      - apicall-network
+
+volumes:
+  postgres_data:
+  asterisk_sounds:
+  asterisk_configs:
+  logs:
+
+networks:
+  apicall-network:
+    driver: bridge

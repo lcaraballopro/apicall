@@ -1,0 +1,29 @@
+# Archivo de systemd para el servicio apicall
+# Copiar a /etc/systemd/system/apicall.service
+
+[Unit]
+Description=Apicall Microservice - Gestión de Llamadas IVR
+Documentation=file:///opt/apicall/README.md
+After=network.target asterisk.service mariadb.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/apicall
+ExecStart=/opt/apicall/bin/apicall start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Variables de entorno (opcional, sobrescribe apicall.yaml)
+Environment="APICALL_CONFIG=/etc/apicall/apicall.yaml"
+# Environment="APICALL_DB_PASSWORD=tu_password"
+
+# Límites de recursos
+LimitNOFILE=65536
+LimitNPROC=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,45 @@
+# Production Configuration for Apicall
+database:
+  host: "${APICALL_DB_HOST:-localhost}"
+  port: 5432
+  name: "${APICALL_DB_NAME:-apicall}"
+  user: "${APICALL_DB_USER:-apicall}"
+  password: "${APICALL_DB_PASSWORD:-password}"
+  max_connections: 25
+  max_idle_conns: 5
+  conn_max_lifetime: "5m"
+
+api:
+  address: "${APICALL_API_ADDRESS:-0.0.0.0:8080}"
+  enable_cors: true
+  read_timeout: "30s"
+  write_timeout: "30s"
+
+asterisk:
+  manager_host: "${APICALL_AMI_HOST:-asterisk}"
+  manager_port: 5038
+  manager_user: "${APICALL_AMI_USER:-admin}"
+  manager_password: "${APICALL_AMI_PASSWORD:-secret}"
+  spool_dir: "/var/spool/asterisk/outgoing"
+
+smart_cid:
+  rotation_interval: "24h"
+  max_failed_calls: 5
+  cooldown_period: "1h"
+
+logging:
+  level: "INFO"
+  file: "/var/log/apicall/apicall.log"
+  max_size: "100MB"
+  max_backups: 7
+  compress: true
+
+security:
+  jwt_secret: "${APICALL_JWT_SECRET:-your-super-secret-jwt-key-change-in-production}"
+  token_expiry: "24h"
+
+performance:
+  batch_size: 100
+  flush_interval: "5s"
+  max_retries: 3
+  retry_delay: "1s"
