@@ -26,7 +26,7 @@ TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/login \
 echo "Login response: $TOKEN_RESPONSE"
 
 # Extract token
-TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.token // empty')
+TOKEN=$(echo $TOKEN_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin).get('token', ''))")
 if [ -z "$TOKEN" ]; then
     echo "Failed to get token, attempting to create admin user first..."
     # This would need database setup first
@@ -37,15 +37,15 @@ echo "Token obtained: ${TOKEN:0:20}..."
 
 echo -e "\n\nTesting logs endpoint..."
 curl -s -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8080/api/v1/logs?limit=5" | jq .
+  "http://localhost:8080/api/v1/logs?limit=5" | python3 -m json.tool
 
 echo -e "\n\nTesting logs endpoint with date filters..."
 curl -s -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8080/api/v1/logs?from_date=2026-01-01&to_date=2026-01-31&limit=5" | jq .
+  "http://localhost:8080/api/v1/logs?from_date=2026-01-01&to_date=2026-01-31&limit=5" | python3 -m json.tool
 
 echo -e "\n\nTesting proyectos endpoint..."
 curl -s -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8080/api/v1/proyectos" | jq .
+  "http://localhost:8080/api/v1/proyectos" | python3 -m json.tool
 
 echo -e "\n=== Tests completed ==="
 

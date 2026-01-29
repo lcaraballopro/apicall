@@ -14,9 +14,13 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Iniciando Despliegue de Apicall ===${NC}"
 
-# 1. Actualizar Código
-echo -e "${YELLOW}[1/3] Actualizando repositorio...${NC}"
-git pull origin main || { echo -e "${RED}Error al actualizar git${NC}"; exit 1; }
+# 1. Actualizar Código (Solo si existe remoto origin)
+if [ -d ".git" ] && git remote get-url origin &> /dev/null; then
+    echo -e "${YELLOW}[1/3] Actualizando repositorio...${NC}"
+    git pull origin main || echo -e "${RED}Error al actualizar git. Continuando con versión local...${NC}"
+else
+    echo -e "${YELLOW}[1/3] Omitiendo actualización de código (no hay remote origin o no es git).${NC}"
+fi
 
 # Detección de entorno
 MODE="auto"
@@ -47,7 +51,10 @@ elif [[ "$MODE" == "systemd" ]]; then
     echo "Compilando binario..."
     make build-prod
     echo "Instalando binario..."
-    sudo make install
+    echo "Instalando binario..."
+    sudo cp bin/apicall /usr/local/bin/
+    sudo cp bin/apicall-cli /usr/local/bin/ 2>/dev/null || true # Copiar CLI si existe
+    sudo chmod +x /usr/local/bin/apicall*
     echo "Reiniciando servicio systemd..."
     sudo systemctl restart apicall
 fi
