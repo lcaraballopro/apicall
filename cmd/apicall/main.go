@@ -12,10 +12,13 @@ import (
 	"apicall/internal/ami"
 	"apicall/internal/api"
 	"apicall/internal/asterisk"
+	"apicall/internal/campaign"
 	"apicall/internal/config"
 	"apicall/internal/database"
+	"apicall/internal/dialer"
 	"apicall/internal/fastagi"
 	"apicall/internal/provisioning"
+	"apicall/internal/smartcid"
 )
 
 const defaultConfigPath = "/etc/apicall/apicall.yaml"
@@ -98,6 +101,50 @@ func cmdStart() {
 	defer amiClient.Close()
 	log.Println("[Main] ✓ Cliente AMI conectado")
 
+	// Inicializar Core Dialer Components
+	// ----------------------------------
+	
+	// 1. Channel Pool (Límites)
+	maxChannels := 50
+	maxPerTrunk := 20
+	if val, err := repo.GetConfig("max_channels"); err == nil && val != "" {
+		if v, err := strconv.Atoi(val); err == nil && v > 0 {
+			maxChannels = v
+		}
+	}
+	if val, err := repo.GetConfig("max_per_trunk"); err == nil && val != "" {
+		if v, err := strconv.Atoi(val); err == nil && v > 0 {
+			maxPerTrunk = v
+		}
+	}
+	pool := dialer.NewChannelPool(maxChannels, maxPerTrunk)
+	log.Printf("[Main] Channel Pool initialized (Global: %d, Trunk: %d)", maxChannels, maxPerTrunk)
+
+	// 2. Active Call Tracker (Memoria)
+	tracker := dialer.NewActiveCallTracker()
+
+	// 3. Call Manager (Adapter for AMI Handler)
+	callManager := dialer.NewCallManager(pool, tracker)
+
+	// 4. AMI Dialer (Synchronous Originate)
+	amiDialer := dialer.NewAMIDialer(amiClient, pool, tracker, repo)
+	
+	// Configure Smart Caller ID Generator
+	if dbConn.DB != nil {
+		scidGen := smartcid.NewGenerator(dbConn.DB)
+		amiDialer.SetSmartCIDGenerator(scidGen)
+	}
+	
+	amiDialer.Start() // Inicia listener de eventos
+	defer amiDialer.Stop()
+
+	// Iniciar AMI Call Status Handler (Tracking & Release)
+	// Usamos callManager que implementa la interfaz requerida
+	amiHandler := ami.NewCallStatusHandler(amiClient, repo, callManager)
+	amiHandler.Start()
+	defer amiHandler.Stop()
+	log.Println("[Main] ✓ AMI Call Status Handler iniciado")
+
 	// Iniciar servidor FastAGI
 	agiServer := fastagi.NewServer(cfg, repo)
 	if err := agiServer.Start(); err != nil {
@@ -105,8 +152,8 @@ func cmdStart() {
 	}
 	log.Println("[Main] ✓ Servidor FastAGI iniciado")
 
-	// Iniciar Worker de Spool (Rate Limiting)
-	asterisk.StartWorker(cfg.Asterisk.MaxCPS, repo)
+	// Iniciar Worker de Spool (Legacy/Manual Calls)
+	asterisk.StartWorker(cfg.Asterisk.MaxCPS, repo, pool, tracker)
 	log.Println("[Main] ✓ Worker de Asterisk iniciado")
 
 	// Iniciar API REST
@@ -119,7 +166,18 @@ func cmdStart() {
 
 	log.Println("[Main] ✓ Servidor API REST iniciado")
 
+	// Iniciar Campaign Sweeper Worker
+	// Ahora usa AMIDialer directamente
+	sweeper := campaign.NewSweeper(repo, amiDialer)
+	sweeper.Start()
+	defer sweeper.Stop()
+	log.Println("[Main] ✓ Campaign Sweeper iniciado")
 
+	// Iniciar Orphan Call Cleaner (limpia llamadas huérfanas en DIALING)
+	orphanCleaner := database.NewOrphanCallCleaner(repo)
+	orphanCleaner.Start()
+	defer orphanCleaner.Stop()
+	log.Println("[Main] ✓ Orphan Call Cleaner iniciado")
 
 	log.Println("[Main] ========================================")
 	log.Printf("[Main] FastAGI escuchando en %s", cfg.FastAGI.Address())

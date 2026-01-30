@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chock Telecom - API</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --primary: #06b6d4;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-bottom: 2rem;
+        }
+
+        .endpoint {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .endpoint-header:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .method {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .method.get {
+            background: #1d4ed8;
+        }
+
+        .method.post {
+            background: #16a34a;
+        }
+
+        .method.put {
+            background: #ca8a04;
+        }
+
+        .method.delete {
+            background: #dc2626;
+        }
+
+        .endpoint-path {
+            font-family: monospace;
+            font-size: 1rem;
+        }
+
+        .endpoint-desc {
+            color: var(--muted);
+            margin-left: auto;
+        }
+
+        .endpoint-body {
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .endpoint.open .endpoint-body {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        .section-title:first-child {
+            margin-top: 0;
+        }
+
+        pre {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
+
+        code {
+            color: var(--primary);
+            font-family: 'Fira Code', monospace;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th,
+        td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .required {
+            color: var(--error);
+        }
+
+        .optional {
+            color: var(--muted);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge.auth {
+            background: #7c3aed;
+        }
+
+        .badge.public {
+            background: #16a34a;
+        }
+
+        .try-it {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 8px;
+        }
+
+        .try-it h4 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .try-it input,
+        .try-it textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: monospace;
+            margin-bottom: 0.75rem;
+        }
+
+        .try-it button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .try-it button:hover {
+            opacity: 0.9;
+        }
+
+        .response-area {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.875rem;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100vh;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            padding: 2rem 1rem;
+            overflow-y: auto;
+        }
+
+        .nav h2 {
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .nav a {
+            display: block;
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .nav a:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-section {
+            margin-top: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .main {
+            margin-left: 250px;
+        }
+
+        @media (max-width: 768px) {
+            .nav {
+                display: none;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav">
+        <div style="margin-bottom: 1.5rem;">
+            <img src="/logo.png" alt="Chock Telecom" style="max-width: 180px; height: auto;">
+        </div>
+        <a href="#auth">Autenticación</a>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Llamadas</div>
+            <a href="#originate">Originar Llamada</a>
+            <a href="#logs">Consultar Reportes</a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Audios</div>
+            <a href="#audio-list">Listar Audios</a>
+            <a href="#audio-upload">Subir Audio</a>
+            <a href="#audio-delete">Eliminar Audio</a>
+            <a href="#audio-get-project">Audio de Proyecto</a>
+            <a href="#audio-set-project">Asociar Audio</a>
+        </div>
+
+    </nav>
+
+    <main class="main">
+        <div class="container">
+            <h1>Chock Telecom - API Documentation</h1>
+            <p class="subtitle">API REST para gestión de llamadas automatizadas</p>
+
+            <!-- AUTH -->
+            <div id="auth" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/api/v1/login</span>
+                    <span class="badge public">Público</span>
+                    <span class="endpoint-desc">Obtener token JWT</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Autentica un usuario y devuelve un token JWT para usar en los demás endpoints.</p>
+
+                    <h5 class="section-title">Request Body</h5>
+                    <pre><code>{
+  "username": "admin",
+  "password": "tu_password"
+}</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin"
+  }
+}</code></pre>
+
+                    <h5 class="section-title">Uso del Token</h5>
+                    <p>Incluir en header de todas las peticiones:</p>
+                    <pre><code>Authorization: Bearer {token}</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="login-username" placeholder="Usuario" value="admin">
+                        <input type="password" id="login-password" placeholder="Contraseña">
+                        <button onclick="tryLogin()">Ejecutar</button>
+                        <div id="login-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ORIGINATE CALL -->
+            <div id="originate" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/api/v1/call</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Originar una llamada</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Inicia una llamada saliente usando la configuración del proyecto especificado.</p>
+
+                    <h5 class="section-title">Request Body</h5>
+                    <table>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>proyecto_id</code></td>
+                            <td>integer</td>
+                            <td class="required">Sí</td>
+                            <td>ID del proyecto configurado</td>
+                        </tr>
+                        <tr>
+                            <td><code>telefono</code></td>
+                            <td>string</td>
+                            <td class="required">Sí</td>
+                            <td>Número a marcar (con código país)</td>
+                        </tr>
+                    </table>
+
+                    <pre><code>{
+  "proyecto_id": 1,
+  "telefono": "573101234567"
+}</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "success": true,
+  "message": "Llamada iniciada",
+  "call_id": "1-0-1706612345000000000",
+  "proyecto": "MiProyecto",
+  "destino": "573101234567"
+}</code></pre>
+
+                    <h5 class="section-title">Códigos de Disposición (Response)</h5>
+                    <table>
+                        <tr>
+                            <th>Código</th>
+                            <th>Significado</th>
+                        </tr>
+                        <tr>
+                            <td><code>A</code></td>
+                            <td>Answered - Contestada</td>
+                        </tr>
+                        <tr>
+                            <td><code>B</code></td>
+                            <td>Busy - Ocupado</td>
+                        </tr>
+                        <tr>
+                            <td><code>NA</code></td>
+                            <td>No Answer - Sin respuesta</td>
+                        </tr>
+                        <tr>
+                            <td><code>CONG</code></td>
+                            <td>Congestion - Congestión de red</td>
+                        </tr>
+                        <tr>
+                            <td><code>FAIL</code></td>
+                            <td>Failed - Error técnico</td>
+                        </tr>
+                    </table>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="originate-token" placeholder="Token JWT">
+                        <textarea id="originate-body" rows="4">{
+  "proyecto_id": 1,
+  "telefono": "573101234567"
+}</textarea>
+                        <button onclick="tryOriginate()">Ejecutar</button>
+                        <div id="originate-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CALL LOGS -->
+            <div id="logs" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/api/v1/logs</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Consultar reportes de llamadas</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtiene el historial de llamadas con filtros opcionales.</p>
+
+                    <h5 class="section-title">Query Parameters</h5>
+                    <table>
+                        <tr>
+                            <th>Parámetro</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>proyecto_id</code></td>
+                            <td>integer</td>
+                            <td class="optional">No</td>
+                            <td>Filtrar por proyecto</td>
+                        </tr>
+                        <tr>
+                            <td><code>campaign_id</code></td>
+                            <td>integer</td>
+                            <td class="optional">No</td>
+                            <td>Filtrar por campaña</td>
+                        </tr>
+                        <tr>
+                            <td><code>status</code></td>
+                            <td>string</td>
+                            <td class="optional">No</td>
+                            <td>Filtrar por status (COMPLETED, DIALING, etc)</td>
+                        </tr>
+                        <tr>
+                            <td><code>disposition</code></td>
+                            <td>string</td>
+                            <td class="optional">No</td>
+                            <td>Filtrar por disposición (A, B, NA, etc)</td>
+                        </tr>
+                        <tr>
+                            <td><code>from</code></td>
+                            <td>date</td>
+                            <td class="optional">No</td>
+                            <td>Fecha inicio (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td><code>to</code></td>
+                            <td>date</td>
+                            <td class="optional">No</td>
+                            <td>Fecha fin (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td><code>limit</code></td>
+                            <td>integer</td>
+                            <td class="optional">No</td>
+                            <td>Límite de resultados (default: 100)</td>
+                        </tr>
+                        <tr>
+                            <td><code>offset</code></td>
+                            <td>integer</td>
+                            <td class="optional">No</td>
+                            <td>Offset para paginación</td>
+                        </tr>
+                    </table>
+
+                    <h5 class="section-title">Ejemplo Request</h5>
+                    <pre><code>GET /api/v1/logs?proyecto_id=1&from=2026-01-01&to=2026-01-31&limit=50</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "logs": [
+    {
+      "id": 1234,
+      "proyecto_id": 1,
+      "proyecto_nombre": "MiProyecto",
+      "campaign_id": 5,
+      "campaign_nombre": "Campaña Enero",
+      "telefono": "573101234567",
+      "caller_id_used": "3101234567",
+      "status": "COMPLETED",
+      "disposition": "A",
+      "dtmf": "1",
+      "interacciono": true,
+      "duracion": 45,
+      "uniqueid": "1706612345.123",
+      "created_at": "2026-01-30T10:15:30Z"
+    }
+  ],
+  "total": 3844,
+  "limit": 50,
+  "offset": 0
+}</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="logs-token" placeholder="Token JWT">
+                        <input type="text" id="logs-params" placeholder="Parámetros: proyecto_id=1&limit=10"
+                            value="limit=10">
+                        <button onclick="tryLogs()">Ejecutar</button>
+                        <div id="logs-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUDIO LIST -->
+            <div id="audio-list" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/api/v1/audios</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Listar archivos de audio</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtiene la lista de archivos de audio disponibles para usar en proyectos.</p>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>[
+  {
+    "name": "bienvenida.wav",
+    "size": 125440,
+    "modified": "2026-01-15T14:30:00Z"
+  },
+  {
+    "name": "encuesta.wav",
+    "size": 256000,
+    "modified": "2026-01-20T09:00:00Z"
+  }
+]</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="audios-list-token" placeholder="Token JWT">
+                        <button onclick="tryAudiosList()">Ejecutar</button>
+                        <div id="audios-list-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUDIO UPLOAD -->
+            <div id="audio-upload" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/api/v1/audios/upload</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Subir archivo de audio</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Sube un archivo de audio y lo convierte automáticamente al formato compatible con Asterisk (WAV
+                        8kHz mono 16-bit).</p>
+
+                    <h5 class="section-title">Request</h5>
+                    <p>Content-Type: <code>multipart/form-data</code></p>
+                    <table>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>file</code></td>
+                            <td>file</td>
+                            <td class="required">Sí</td>
+                            <td>Archivo de audio</td>
+                        </tr>
+                        <tr>
+                            <td><code>name</code></td>
+                            <td>string</td>
+                            <td class="optional">No</td>
+                            <td>Nombre personalizado (sin extensión)</td>
+                        </tr>
+                    </table>
+
+                    <h5 class="section-title">Formatos Soportados</h5>
+                    <p><code>wav</code>, <code>mp3</code>, <code>ogg</code>, <code>flac</code>, <code>m4a</code>,
+                        <code>gsm</code>, <code>ulaw</code>, <code>alaw</code>, <code>sln</code>
+                    </p>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "success": true,
+  "filename": "mi_audio.wav",
+  "path": "apicall/mi_audio.wav",
+  "original_size": 1024000,
+  "final_size": 256000,
+  "converted": true
+}</code></pre>
+
+                    <h5 class="section-title">Ejemplo cURL</h5>
+                    <pre><code>curl -X POST "http://localhost:8080/api/v1/audios/upload" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@/path/to/audio.mp3" \
+  -F "name=mi_audio"</code></pre>
+                </div>
+            </div>
+
+            <!-- AUDIO DELETE -->
+            <div id="audio-delete" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method delete">DELETE</span>
+                    <span class="endpoint-path">/api/v1/audios/delete</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Eliminar archivo de audio</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Elimina un archivo de audio del servidor.</p>
+
+                    <h5 class="section-title">Query Parameters</h5>
+                    <table>
+                        <tr>
+                            <th>Parámetro</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>name</code></td>
+                            <td>string</td>
+                            <td class="required">Sí</td>
+                            <td>Nombre del archivo a eliminar</td>
+                        </tr>
+                    </table>
+
+                    <h5 class="section-title">Ejemplo</h5>
+                    <pre><code>DELETE /api/v1/audios/delete?name=mi_audio.wav</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "success": true,
+  "deleted": "mi_audio.wav"
+}</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="audio-delete-token" placeholder="Token JWT">
+                        <input type="text" id="audio-delete-name" placeholder="Nombre del archivo (ej: mi_audio.wav)">
+                        <button onclick="tryAudioDelete()">Ejecutar</button>
+                        <div id="audio-delete-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+            <div id="audio-get-project" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/api/v1/proyectos/audio</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Consultar audio de proyecto</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Consulta qué archivo de audio tiene configurado un proyecto.</p>
+
+                    <h5 class="section-title">Query Parameters</h5>
+                    <table>
+                        <tr>
+                            <th>Parámetro</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>proyecto_id</code></td>
+                            <td>integer</td>
+                            <td class="required">Sí</td>
+                            <td>ID del proyecto</td>
+                        </tr>
+                    </table>
+
+                    <h5 class="section-title">Ejemplo Request</h5>
+                    <pre><code>GET /api/v1/proyectos/audio?proyecto_id=1</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "proyecto_id": 1,
+  "proyecto_name": "Mi Proyecto",
+  "audio": "bienvenida.wav"
+}</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="audio-get-token" placeholder="Token JWT">
+                        <input type="text" id="audio-get-proyecto" placeholder="ID del proyecto (ej: 1)" value="1">
+                        <button onclick="tryAudioGet()">Ejecutar</button>
+                        <div id="audio-get-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+            <div id="audio-set-project" class="endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <span class="method put">PUT</span>
+                    <span class="endpoint-path">/api/v1/proyectos/audio</span>
+                    <span class="badge auth">Auth</span>
+                    <span class="endpoint-desc">Asociar audio a proyecto</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Asocia un archivo de audio existente a un proyecto. El audio debe haberse subido previamente.</p>
+
+                    <h5 class="section-title">Request Body</h5>
+                    <table>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                        <tr>
+                            <td><code>proyecto_id</code></td>
+                            <td>integer</td>
+                            <td class="required">Sí</td>
+                            <td>ID del proyecto</td>
+                        </tr>
+                        <tr>
+                            <td><code>audio</code></td>
+                            <td>string</td>
+                            <td class="required">Sí</td>
+                            <td>Nombre del archivo de audio (incluir extensión)</td>
+                        </tr>
+                    </table>
+
+                    <pre><code>{
+  "proyecto_id": 1,
+  "audio": "mi_audio.wav"
+}</code></pre>
+
+                    <h5 class="section-title">Response 200</h5>
+                    <pre><code>{
+  "success": true,
+  "proyecto_id": 1,
+  "audio": "mi_audio.wav"
+}</code></pre>
+
+                    <h5 class="section-title">Ejemplo cURL</h5>
+                    <pre><code>curl -X PUT "http://localhost:8080/api/v1/proyectos/audio" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"proyecto_id": 1, "audio": "mi_audio.wav"}'</code></pre>
+
+                    <div class="try-it">
+                        <h4>🧪 Probar Endpoint</h4>
+                        <input type="text" id="audio-set-token" placeholder="Token JWT">
+                        <textarea id="audio-set-body" rows="4">{
+  "proyecto_id": 1,
+  "audio": "mi_audio.wav"
+}</textarea>
+                        <button onclick="tryAudioSet()">Ejecutar</button>
+                        <div id="audio-set-response" class="response-area">// Respuesta aparecerá aquí</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+                style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); color: var(--muted); text-align: center;">
+                <p>Chock Telecom API v1.0</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Fix curly quotes that may appear from copy-paste
+        function fixQuotes(str) {
+            return str.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+                .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+        }
+
+        function toggleEndpoint(header) {
+            header.parentElement.classList.toggle('open');
+        }
+
+        async function tryLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const responseEl = document.getElementById('login-response');
+
+            try {
+                const res = await fetch('/api/v1/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        async function tryOriginate() {
+            const token = document.getElementById('originate-token').value;
+            const bodyText = fixQuotes(document.getElementById('originate-body').value.trim());
+            const responseEl = document.getElementById('originate-response');
+
+            // Validate JSON first
+            try {
+                JSON.parse(bodyText);
+            } catch (e) {
+                responseEl.textContent = `Error de formato JSON: ${e.message}`;
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/v1/call', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: bodyText
+                });
+                const text = await res.text();
+                try {
+                    const data = JSON.parse(text);
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                } catch {
+                    responseEl.textContent = `Status: ${res.status}\n${text}`;
+                }
+            } catch (e) {
+                responseEl.textContent = `Error de conexión: ${e.message}`;
+            }
+        }
+
+        async function tryLogs() {
+            const token = document.getElementById('logs-token').value;
+            const params = document.getElementById('logs-params').value;
+            const responseEl = document.getElementById('logs-response');
+
+            try {
+                const res = await fetch(`/api/v1/logs?${params}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        async function tryAudiosList() {
+            const token = document.getElementById('audios-list-token').value;
+            const responseEl = document.getElementById('audios-list-response');
+
+            try {
+                const res = await fetch('/api/v1/audios', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        async function tryAudioDelete() {
+            const token = document.getElementById('audio-delete-token').value;
+            const name = document.getElementById('audio-delete-name').value;
+            const responseEl = document.getElementById('audio-delete-response');
+
+            try {
+                const res = await fetch(`/api/v1/audios/delete?name=${encodeURIComponent(name)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        async function tryAudioGet() {
+            const token = document.getElementById('audio-get-token').value;
+            const proyectoId = document.getElementById('audio-get-proyecto').value;
+            const responseEl = document.getElementById('audio-get-response');
+
+            try {
+                const res = await fetch(`/api/v1/proyectos/audio?proyecto_id=${proyectoId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        async function tryAudioSet() {
+            const token = document.getElementById('audio-set-token').value;
+            const bodyText = fixQuotes(document.getElementById('audio-set-body').value.trim());
+            const responseEl = document.getElementById('audio-set-response');
+
+            // Validate JSON first
+            try {
+                JSON.parse(bodyText);
+            } catch (e) {
+                responseEl.textContent = `Error de formato JSON: ${e.message}`;
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/v1/proyectos/audio', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: bodyText
+                });
+                const data = await res.json();
+                responseEl.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseEl.textContent = `Error: ${e.message}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

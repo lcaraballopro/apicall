@@ -32,7 +32,7 @@ database:
 
 # Asterisk
 asterisk:
-  sound_path: "/var/lib/asterisk/sounds/custom"  # Ruta de archivos de audio
+  sound_path: "/var/lib/asterisk/sounds/apicall"  # Ruta de archivos de audio
   max_cps: 400 # Límite de llamadas por segundo (Spooler) - Test de estrés extremo
   default_context: "apicall_context"              # Contexto para entradas FastAGI
   outbound_context: "apicall_outbound"            # Contexto para salidas

@@ -110,8 +110,9 @@ async function loadProyectos() {
             <td>${p.caller_id}</td>
             <td><span class="badge">${p.troncal_salida}</span></td>
             <td>${p.amd_active ? '✅' : '❌'}</td>
-            <td>${p.smart_active ? '✅' : '❌'}</td>
+            <td>${p.smart_cid_active ? '✅' : '❌'}</td>
             <td>
+                <button class="btn btn-primary" style="padding: 5px 12px; margin-right: 5px;" onclick='openEditProyecto(${JSON.stringify(p)})'>Editar</button>
                 <button class="btn btn-danger" onclick="deleteProyecto(${p.id})">Eliminar</button>
             </td>
         `;
@@ -250,6 +251,63 @@ async function deleteProyecto(id) {
     loadProyectos();
 }
 
+function openEditProyecto(proyecto) {
+    // Populate form with project data
+    document.getElementById('edit-proyecto-id').value = proyecto.id;
+    document.getElementById('edit-proyecto-nombre').value = proyecto.nombre;
+    document.getElementById('edit-proyecto-callerid').value = proyecto.caller_id || '';
+    document.getElementById('edit-proyecto-audio').value = proyecto.audio || '';
+    document.getElementById('edit-proyecto-dtmf').value = proyecto.dtmf_esperado || '';
+    document.getElementById('edit-proyecto-desborde').value = proyecto.numero_desborde || '';
+    document.getElementById('edit-proyecto-troncal').value = proyecto.troncal_salida || '';
+    document.getElementById('edit-proyecto-prefijo').value = proyecto.prefijo_salida || '';
+    document.getElementById('edit-proyecto-ips').value = proyecto.ips_autorizadas || '*';
+    document.getElementById('edit-proyecto-retries').value = proyecto.max_retries || 0;
+    document.getElementById('edit-proyecto-retry-time').value = proyecto.retry_time || 60;
+    document.getElementById('edit-proyecto-amd').checked = proyecto.amd_active || false;
+    document.getElementById('edit-proyecto-smart').checked = proyecto.smart_cid_active || false;
+
+    // Load blacklist for this project
+    loadBlacklist(proyecto.id);
+
+    openModal('modal-edit-proyecto');
+}
+
+async function handleEditProyecto(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+        id: parseInt(formData.get('id')),
+        nombre: formData.get('nombre'),
+        caller_id: formData.get('caller_id'),
+        audio: formData.get('audio'),
+        dtmf_esperado: formData.get('dtmf_esperado'),
+        numero_desborde: formData.get('numero_desborde'),
+        troncal_salida: formData.get('troncal_salida'),
+        prefijo_salida: formData.get('prefijo_salida'),
+        ips_autorizadas: formData.get('ips_autorizadas'),
+        max_retries: parseInt(formData.get('max_retries')),
+        retry_time: parseInt(formData.get('retry_time')),
+        amd_active: formData.get('amd_active') === 'on',
+        smart_cid_active: formData.get('smart_cid_active') === 'on'
+    };
+
+    const res = await apiFetch('/proyectos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    if (res && res.ok) {
+        closeModal('modal-edit-proyecto');
+        loadProyectos();
+        alert('✅ Proyecto actualizado correctamente');
+    } else {
+        alert('❌ Error actualizando proyecto');
+    }
+}
+
+
 async function handleCreateTroncal(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -337,7 +395,7 @@ async function loadReports() {
     const toDate = document.getElementById('report-date-to').value;
 
     // Build URL with optional filters
-    let url = '/logs?limit=500';
+    let url = '/logs?limit=5000';
     if (proyectoID) {
         url += `&proyecto_id=${proyectoID}`;
     }
@@ -351,7 +409,7 @@ async function loadReports() {
     try {
         const res = await apiFetch(url);
         if (!res) return;
-        
+
         const data = await res.json();
         const tbody = document.getElementById('table-reports-body');
         const statsDiv = document.getElementById('report-stats');
@@ -368,7 +426,7 @@ async function loadReports() {
         const answered = data.filter(log => log.disposition === 'ANSWERED').length;
         const interacted = data.filter(log => log.interacciono).length;
         const avgDuration = Math.round(data.reduce((sum, log) => sum + (log.duracion || 0), 0) / total);
-        
+
         statsDiv.innerHTML = `${total} registros | ${answered} respondidas | ${interacted} con interacción | Duración promedio: ${avgDuration}s`;
 
         // Get project names for display
@@ -382,7 +440,7 @@ async function loadReports() {
             const projectName = proyectoMap[log.proyecto_id] || `Proyecto #${log.proyecto_id}`;
             const statusBadge = getStatusBadge(log.status);
             const dispositionBadge = getDispositionBadge(log.disposition);
-            
+
             tr.innerHTML = `
                 <td>${log.id}</td>
                 <td><strong>${projectName}</strong></td>
@@ -412,14 +470,14 @@ function getStatusBadge(status) {
         'BUSY': { color: 'red', text: 'Ocupado' },
         'NOANSWER': { color: 'orange', text: 'No Respondió' }
     };
-    
+
     const config = statusConfig[status] || { color: 'gray', text: status };
     return `<span class="badge" style="background-color: var(--${config.color}-color)">${config.text}</span>`;
 }
 
 function getDispositionBadge(disposition) {
     if (!disposition) return '-';
-    
+
     const dispConfig = {
         'ANSWERED': { color: 'green', text: 'Respondida' },
         'BUSY': { color: 'red', text: 'Ocupado' },
@@ -427,7 +485,7 @@ function getDispositionBadge(disposition) {
         'CANCELLED': { color: 'gray', text: 'Cancelada' },
         'FAILED': { color: 'red', text: 'Falló' }
     };
-    
+
     const config = dispConfig[disposition] || { color: 'gray', text: disposition };
     return `<span class="badge" style="background-color: var(--${config.color}-color)">${config.text}</span>`;
 }
@@ -468,15 +526,6 @@ async function handleAudioUpload(event) {
     formData.append('audio', file);
 
     try {
-        const res = await apiFetch('/audios/upload', {
-            method: 'POST',
-            body: formData,
-            headers: {} // Don't set Content-Type, let browser set it with boundary
-        });
-
-        // Override headers to only include Auth
-        delete res; // Clear to rebuild
-
         const token = getToken();
         const uploadRes = await fetch('/api/v1/audios/upload', {
             method: 'POST',
@@ -502,6 +551,111 @@ async function deleteAudio(name) {
     if (!confirm(`¿Eliminar ${name}?`)) return;
     await apiFetch(`/audios/delete?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
     loadAudios();
+}
+
+// --- Blacklist Management ---
+async function loadBlacklist(proyectoID) {
+    const res = await apiFetch(`/blacklist?proyecto_id=${proyectoID}&limit=50`);
+    if (!res) return;
+
+    const data = await res.json();
+    const tbody = document.getElementById('table-blacklist-body');
+    document.getElementById('blacklist-count').innerText = data.total || 0;
+
+    tbody.innerHTML = '';
+
+    if (!data.entries || data.entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">No hay números bloqueados</td></tr>';
+        return;
+    }
+
+    data.entries.forEach(entry => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${entry.telefono}</td>
+            <td>${entry.razon || '-'}</td>
+            <td>${new Date(entry.created_at).toLocaleDateString()}</td>
+            <td>
+                <button class="btn btn-danger" style="padding:2px 8px;font-size:0.75rem" 
+                    onclick="deleteFromBlacklist(${entry.id})">🗑</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function handleBlacklistCSVUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const proyectoID = document.getElementById('edit-proyecto-id').value;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('proyecto_id', proyectoID);
+
+    try {
+        const token = getToken();
+        const res = await fetch('/api/v1/blacklist/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (res && res.ok) {
+            const result = await res.json();
+            alert(`✅ Importados ${result.imported} de ${result.total} números`);
+            loadBlacklist(proyectoID);
+            event.target.value = ''; // Reset input
+        } else {
+            alert('❌ Error importando CSV');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('❌ Error de conexión');
+    }
+}
+
+async function addToBlacklist() {
+    const proyectoID = document.getElementById('edit-proyecto-id').value;
+    const telefono = document.getElementById('blacklist-telefono').value.trim();
+
+    if (!telefono) {
+        alert('Ingrese un número de teléfono');
+        return;
+    }
+
+    const res = await apiFetch('/blacklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proyecto_id: parseInt(proyectoID), telefono: telefono })
+    });
+
+    if (res && res.ok) {
+        document.getElementById('blacklist-telefono').value = '';
+        loadBlacklist(proyectoID);
+    } else {
+        alert('❌ Error agregando número');
+    }
+}
+
+async function deleteFromBlacklist(id) {
+    const proyectoID = document.getElementById('edit-proyecto-id').value;
+    await apiFetch(`/blacklist/delete?id=${id}`, { method: 'DELETE' });
+    loadBlacklist(proyectoID);
+}
+
+async function clearBlacklist() {
+    if (!confirm('¿Eliminar TODOS los números de la lista negra?')) return;
+
+    const proyectoID = document.getElementById('edit-proyecto-id').value;
+    const res = await apiFetch(`/blacklist/clear?proyecto_id=${proyectoID}`, { method: 'DELETE' });
+
+    if (res && res.ok) {
+        alert('✅ Lista negra limpiada');
+        loadBlacklist(proyectoID);
+    } else {
+        alert('❌ Error limpiando lista');
+    }
 }
 
 // --- Modals ---

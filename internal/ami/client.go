@@ -20,7 +20,7 @@ type Client struct {
 	writer    *bufio.Writer
 	mu        sync.Mutex
 	connected bool
-	events    chan Event
+	subscribers []chan Event // List of subscribers
 	done      chan struct{}
 }
 
@@ -33,9 +33,9 @@ type Event struct {
 // NewClient crea un nuevo cliente AMI
 func NewClient(cfg *config.AMIConfig) *Client {
 	return &Client{
-		config: cfg,
-		events: make(chan Event, 10000), // Buffer aumentado para alto volumen
-		done:   make(chan struct{}),
+		config:      cfg,
+		subscribers: make([]chan Event, 0),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -144,14 +144,29 @@ func (c *Client) readEvents() {
 				return        // Terminar esta goroutine, Connect() ya lanzó una nueva
 			}
 
-			// Enviar evento al canal
-			select {
-			case c.events <- *event:
-			default:
-				// Buffer lleno: descartar evento silenciosamente
+			// Broadcast to all subscribers
+			c.mu.Lock()
+			for _, sub := range c.subscribers {
+				select {
+				case sub <- *event:
+				default:
+					// Subscriber buffer full, drop event for this subscriber
+				}
 			}
+			c.mu.Unlock()
 		}
 	}
+}
+
+// Subscribe returns a channel that receives all AMI events
+func (c *Client) Subscribe() <-chan Event {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	// Buffered channel for the subscriber
+	ch := make(chan Event, 2000)
+	c.subscribers = append(c.subscribers, ch)
+	return ch
 }
 
 // reconnect intenta reconectar al AMI
@@ -198,6 +213,11 @@ func (c *Client) sendAction(action string) error {
 	return c.writer.Flush()
 }
 
+// SendAction is the public version of sendAction for external use
+func (c *Client) SendAction(action string) error {
+	return c.sendAction(action)
+}
+
 // Close cierra la conexión AMI
 func (c *Client) Close() error {
 	close(c.done)
@@ -210,7 +230,11 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Events devuelve el canal de eventos
+// Events is deprecated in favor of Subscribe. 
+// Kept temporarily for backward compatibility if needed, 
+// but in this refactor we should use Subscribe.
 func (c *Client) Events() <-chan Event {
-	return c.events
+	// For backward compatibility, create a subscription if called
+	// but mostly we should update callers.
+	return c.Subscribe()
 }

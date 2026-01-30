@@ -17,6 +17,7 @@ type Proyecto struct {
 	RetryTime      int       `db:"retry_time" json:"retry_time"`
 	AMDActive      bool      `db:"amd_active" json:"amd_active"`
 	SmartCIDActive bool      `db:"smart_cid_active" json:"smart_cid_active"`
+	Timezone       string    `db:"timezone" json:"timezone"`
 	CreatedAt      time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -38,11 +39,12 @@ type Troncal struct {
 type CallLog struct {
 	ID           int64     `db:"id" json:"id"`
 	ProyectoID   int       `db:"proyecto_id" json:"proyecto_id"`
+	CampaignID   *int      `db:"campaign_id" json:"campaign_id,omitempty"` // Pointer to allow NULL in JSON/DB
 	Telefono     string    `db:"telefono" json:"telefono"`
-	DTMFMarcado  *string   `db:"dtmf_marcado" json:"dtmf_marcado"`
+	DTMFMarcado  string    `db:"dtmf_marcado" json:"dtmf_marcado"`
 	Interacciono bool      `db:"interacciono" json:"interacciono"`
 	Status       string    `db:"status" json:"status"`
-	Disposition  *string   `db:"disposition" json:"disposition"`
+	Disposition  string    `db:"disposition" json:"disposition"`
 	Duracion     int       `db:"duracion" json:"duracion"`
 	Uniqueid     string    `db:"uniqueid" json:"uniqueid"`
 	CallerIDUsed string    `db:"caller_id_used" json:"caller_id_used"`
@@ -86,5 +88,14 @@ type CampaignSchedule struct {
 	HoraInicio string    `db:"hora_inicio" json:"hora_inicio"` // TIME format "HH:MM:SS"
 	HoraFin    string    `db:"hora_fin" json:"hora_fin"` // TIME format "HH:MM:SS"
 	Activo     bool      `db:"activo" json:"activo"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+}
+
+// BlacklistEntry representa un número bloqueado por proyecto
+type BlacklistEntry struct {
+	ID         int64     `db:"id" json:"id"`
+	ProyectoID int       `db:"proyecto_id" json:"proyecto_id"`
+	Telefono   string    `db:"telefono" json:"telefono"`
+	Razon      *string   `db:"razon" json:"razon"`
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }

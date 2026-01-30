@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"apicall/internal/database"
+	"apicall/internal/dialer"
 	"apicall/internal/smartcid"
 
 	"github.com/google/uuid"
@@ -24,8 +25,10 @@ const (
 
 // CallJob represents a call request
 type CallJob struct {
-	Proyecto *database.Proyecto
-	Telefono string
+	Proyecto   *database.Proyecto
+	Telefono   string
+	ContactID  int64  // ID del contacto de campaña (0 si no aplica)
+	CampaignID int    // ID de la campaña (0 si no aplica)
 }
 
 var (
@@ -34,10 +37,13 @@ var (
 	workerLimit   int
 	workerRepo    *database.Repository
 	scidGen       *smartcid.Generator
+	channelPool   *dialer.ChannelPool       // Controls concurrent call limits
+	callTracker   *dialer.ActiveCallTracker // Tracks active calls for correlation
+	orphanCleaner *dialer.OrphanCallCleaner // Cleans up orphaned calls
 )
 
 // StartWorker initiates the spool worker
-func StartWorker(maxCPS int, repo *database.Repository) {
+func StartWorker(maxCPS int, repo *database.Repository, pool *dialer.ChannelPool, tracker *dialer.ActiveCallTracker) {
 	if workerRunning {
 		return
 	}
@@ -68,6 +74,15 @@ func StartWorker(maxCPS int, repo *database.Repository) {
 	workerRepo = repo
 	jobQueue = make(chan CallJob, QueueSize)
 
+	// Use injected ChannelPool and Tracker
+	channelPool = pool
+	callTracker = tracker
+	log.Printf("[Spooler] ChannelPool and CallTracker injected")
+
+	// Start orphan cleaner
+	orphanCleaner = dialer.NewOrphanCallCleaner(repo, channelPool, callTracker)
+	orphanCleaner.Start()
+
 	// Init SmartCID
 	if repo.GetDB() != nil {
 		scidGen = smartcid.NewGenerator(repo.GetDB())
@@ -82,17 +97,25 @@ func StartWorker(maxCPS int, repo *database.Repository) {
 	go processQueue()
 }
 
-// QueueCall queues a call
+// QueueCall queues a call (legacy, for non-campaign calls)
 func QueueCall(proyecto *database.Proyecto, telefono string) {
+	QueueCampaignCall(proyecto, telefono, 0, 0)
+}
+
+// QueueCampaignCall queues a call with campaign tracking
+// Returns true if queued successfully, false if rejected (queue full or worker stopped)
+func QueueCampaignCall(proyecto *database.Proyecto, telefono string, contactID int64, campaignID int) bool {
 	if !workerRunning {
 		log.Printf("[Spooler] Worker no iniciado, rechazando llamada a %s", telefono)
-		return
+		return false
 	}
 
 	select {
-	case jobQueue <- CallJob{Proyecto: proyecto, Telefono: telefono}:
+	case jobQueue <- CallJob{Proyecto: proyecto, Telefono: telefono, ContactID: contactID, CampaignID: campaignID}:
+		return true
 	default:
 		log.Printf("[Spooler] Cola llena, rechazando llamada a %s", telefono)
+		return false
 	}
 }
 
@@ -158,12 +181,19 @@ func generateCallFile(job CallJob) {
 	}
 
 	// Create DB Log
+	var campaignID *int
+	if job.CampaignID > 0 {
+		cid := job.CampaignID
+		campaignID = &cid
+	}
+
 	callLog := &database.CallLog{
 		ProyectoID:   job.Proyecto.ID,
 		Telefono:     job.Telefono,
 		Status:       "DIALING",
 		Interacciono: false,
 		CallerIDUsed: cid,
+		CampaignID:   campaignID,
 	}
 
 	logID, err := workerRepo.CreateCallLog(callLog)
@@ -206,6 +236,18 @@ func generateCallFile(job CallJob) {
 		}
 	}
 
+	// CHECK CHANNEL LIMITS before proceeding
+	if channelPool != nil && !channelPool.Acquire(selectedTrunk) {
+		log.Printf("[Spooler] Channel limit reached, rejecting call to %s (trunk: %s)", job.Telefono, selectedTrunk)
+		workerRepo.UpdateCallLog(logID, nil, nil, nil, false, "CHANNEL_LIMIT", 0)
+		// Update contact status if applicable
+		if job.ContactID > 0 {
+			pending := "pending" // Return to pending so it can be retried
+			workerRepo.UpdateContactStatus(job.ContactID, pending, nil)
+		}
+		return
+	}
+
 	content := fmt.Sprintf(`Channel: SIP/%s/%s
 CallerID: "%s" <%s>
 MaxRetries: %d
@@ -218,6 +260,8 @@ Set: APICALL_LOG_ID=%d
 Set: APICALL_PROYECTO_ID=%d
 Set: APICALL_TELEFONO=%s
 Set: APICALL_UNIQUEID=%s
+Set: APICALL_CONTACT_ID=%d
+Set: APICALL_CAMPAIGN_ID=%d
 Archive: yes
 `, selectedTrunk, dialNumber,
 		job.Proyecto.Nombre, cid,
@@ -227,19 +271,83 @@ Archive: yes
 		job.Proyecto.ID,
 		job.Telefono,
 		uniqueID,
+		job.ContactID,
+		job.CampaignID,
 	)
 
 	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
 		log.Printf("[Spooler] Error escribiendo archivo tmp: %v", err)
-		workerRepo.UpdateCallLog(logID, nil, nil, false, "SPOOL_ERROR", 0)
+		workerRepo.UpdateCallLog(logID, nil, nil, nil, false, "SPOOL_ERROR", 0)
 		return
+	}
+
+	// Register active call for tracking BEFORE moving file
+	// This prevents race condition where Asterisk executes and sends event
+	// before we track it
+	if callTracker != nil {
+		callTracker.Add(&dialer.ActiveCall{
+			UniqueID:   uniqueID,
+			LogID:      logID,
+			ContactID:  job.ContactID,
+			CampaignID: job.CampaignID,
+			ProyectoID: job.Proyecto.ID,
+			Trunk:      selectedTrunk,
+			Telefono:   job.Telefono,
+			StartTime:  time.Now(),
+		})
 	}
 
 	// Atomic Move
 	if err := os.Rename(tmpPath, destPath); err != nil {
 		log.Printf("[Spooler] Error moviendo archivo a spool: %v", err)
 		os.Remove(tmpPath)
-		workerRepo.UpdateCallLog(logID, nil, nil, false, "SPOOL_ERROR", 0)
+		workerRepo.UpdateCallLog(logID, nil, nil, nil, false, "SPOOL_ERROR", 0)
+		
+		// Rollback tracking and limits
+		if callTracker != nil {
+			callTracker.Remove(uniqueID)
+		}
+		if channelPool != nil {
+			channelPool.Release(selectedTrunk)
+		}
 		return
 	}
+}
+
+// ReleaseChannel releases a channel slot when a call ends
+// Called by AMI event handler when a call completes
+func ReleaseChannel(uniqueID string) {
+	if callTracker == nil {
+		return
+	}
+	
+	call := callTracker.Remove(uniqueID)
+	if call != nil && channelPool != nil {
+		channelPool.Release(call.Trunk)
+	}
+}
+
+// GetActiveCall retrieves an active call by uniqueID
+func GetActiveCall(uniqueID string) *dialer.ActiveCall {
+	if callTracker == nil {
+		return nil
+	}
+	return callTracker.Get(uniqueID)
+}
+
+// GetChannelStats returns current channel pool statistics
+func GetChannelStats() *dialer.PoolStats {
+	if channelPool == nil {
+		return nil
+	}
+	stats := channelPool.Stats()
+	return &stats
+}
+
+// GetActiveCallCount returns the number of active calls
+func GetActiveCallCount() int {
+	if callTracker == nil {
+		return 0
+	}
+	return callTracker.Count()
 }

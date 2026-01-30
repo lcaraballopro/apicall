@@ -20,6 +20,7 @@ type LogUpdate struct {
 	ID           int64
 	DTMFMarcado  *string
 	Disposition  *string
+	Uniqueid     *string
 	Interacciono bool
 	Status       string
 	Duracion     int
@@ -152,6 +153,7 @@ func (b *LogBatcher) flush(updates []LogUpdate) {
     // If pointer is nil, we iterate.
     dtmfCases := make([]string, 0, len(updates))
     dispositionCases := make([]string, 0, len(updates))
+    uniqueidCases := make([]string, 0, len(updates))
 
     for i, u := range updates {
         ids[i] = fmt.Sprintf("%d", u.ID)
@@ -172,6 +174,10 @@ func (b *LogBatcher) flush(updates []LogUpdate) {
         if u.Disposition != nil {
              dispositionCases = append(dispositionCases, fmt.Sprintf("WHEN %d THEN '%s'", u.ID, *u.Disposition))
         }
+
+        if u.Uniqueid != nil {
+            uniqueidCases = append(uniqueidCases, fmt.Sprintf("WHEN %d THEN '%s'", u.ID, *u.Uniqueid))
+        }
     }
 
     idList := strings.Join(ids, ",")
@@ -191,9 +197,14 @@ func (b *LogBatcher) flush(updates []LogUpdate) {
          queryBuilder.WriteString(fmt.Sprintf(", disposition = CASE id %s ELSE disposition END", strings.Join(dispositionCases, " ")))
     }
 
+    if len(uniqueidCases) > 0 {
+         queryBuilder.WriteString(fmt.Sprintf(", uniqueid = CASE id %s ELSE uniqueid END", strings.Join(uniqueidCases, " ")))
+    }
+
     queryBuilder.WriteString(fmt.Sprintf(" WHERE id IN (%s)", idList))
 
     query := queryBuilder.String()
+    log.Printf("[LogBatcher] DEBUG Query: %s", query)
     
     _, err := b.db.Exec(query)
     if err != nil {
@@ -201,5 +212,50 @@ func (b *LogBatcher) flush(updates []LogUpdate) {
         // In a real system, we might want to retry or dump to a fallback file
     } else {
         log.Printf("[LogBatcher] Flushed %d updates in %v", len(updates), time.Since(start))
+        // Sync campaign contacts based on updated call logs
+        b.syncCampaignContacts(ids)
     }
 }
+
+// syncCampaignContacts updates campaign contacts based on finalized call logs
+// It matches by telefono and proyecto_id to find the correct campaign contact
+func (b *LogBatcher) syncCampaignContacts(logIDs []string) {
+	if len(logIDs) == 0 {
+		return
+	}
+
+	// This query updates campaign_contacts by joining with call_log
+	// It maps call_log.status to campaign_contact.estado:
+	// - ANSWERED/ANSWER -> completed
+	// - NOANSWER/BUSY/FAILED/CONGESTION -> failed
+	// - BLACKLISTED -> skipped
+	// - Others stay as is (dialing contacts without matching final status)
+	query := `
+		UPDATE apicall_campaign_contacts cc
+		INNER JOIN apicall_call_log cl ON cc.telefono = cl.telefono
+		INNER JOIN apicall_campaigns c ON cc.campaign_id = c.id AND c.proyecto_id = cl.proyecto_id
+		SET 
+			cc.estado = CASE 
+				WHEN cl.status IN ('ANSWERED', 'ANSWER', 'AMD_HUMAN', 'COMPLETED') THEN 'completed'
+				WHEN cl.status IN ('NOANSWER', 'NO ANSWER', 'BUSY', 'FAILED', 'CONGESTION', 'CANCEL', 'TIMEOUT', 'AMD_MACHINE') THEN 'failed'
+				WHEN cl.status = 'BLACKLISTED' THEN 'skipped'
+				ELSE cc.estado
+			END,
+			cc.resultado = cl.status,
+			cc.ultimo_intento = NOW()
+		WHERE cl.id IN (` + strings.Join(logIDs, ",") + `)
+		  AND cc.estado = 'dialing'
+	`
+
+	result, err := b.db.Exec(query)
+	if err != nil {
+		log.Printf("[LogBatcher] ERROR syncing campaign contacts: %v", err)
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows > 0 {
+		log.Printf("[LogBatcher] Synced %d campaign contacts", rows)
+	}
+}
+

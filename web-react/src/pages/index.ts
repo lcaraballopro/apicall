@@ -1,0 +1,10 @@
+export { LoginPage } from './LoginPage';
+export { DashboardPage } from './DashboardPage';
+export { ProyectosPage } from './ProyectosPage';
+export { TroncalesPage } from './TroncalesPage';
+export { TestCallPage } from './TestCallPage';
+export { ReportsPage } from './ReportsPage';
+export { AudiosPage } from './AudiosPage';
+export { UsersPage } from './UsersPage';
+export { CampaignsPage } from './CampaignsPage';
+export { ConfigPage } from './ConfigPage';

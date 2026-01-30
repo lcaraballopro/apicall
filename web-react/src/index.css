@@ -1,0 +1,350 @@
+@import "tailwindcss";
+
+/* Dark theme (default) */
+:root,
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+  --radius: 0.5rem;
+  --success: 142.1 76.2% 36.3%;
+  --warning: 38 92% 50%;
+}
+
+/* Light theme - Premium Design */
+.light {
+  /* Fondo principal con tono cálido sutil */
+  --background: 220 20% 97%;
+  --foreground: 220 30% 15%;
+
+  /* Cards con fondo blanco puro y sombras suaves */
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 15%;
+
+  /* Primary - Azul vibrante profesional */
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary - Gris azulado elegante */
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 30% 25%;
+
+  /* Muted - Tonos suaves para fondos */
+  --muted: 220 14% 95%;
+  --muted-foreground: 220 10% 45%;
+
+  /* Accent - Azul suave para hover states */
+  --accent: 217 91% 97%;
+  --accent-foreground: 221 83% 45%;
+
+  /* Destructive - Rojo moderno */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Bordes sutiles pero definidos */
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.5rem;
+
+  /* Estados - Colores vibrantes */
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+
+  /* Sidebar - Azul oscuro elegante para contraste */
+  --sidebar-bg: 222 47% 11%;
+  --sidebar-fg: 210 40% 98%;
+  --sidebar-hover: 217 33% 17%;
+  --sidebar-active: 221 83% 53%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Utility classes */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer border-none;
+}
+
+.btn-primary {
+  @apply bg-[hsl(var(--primary))] text-white hover:opacity-90;
+}
+
+.btn-secondary {
+  @apply bg-[hsl(var(--secondary))] text-white hover:opacity-90;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+.card {
+  @apply bg-[hsl(var(--card))] rounded-xl p-6 border border-[hsl(var(--border))];
+}
+
+.input {
+  @apply w-full px-3 py-2 rounded-lg bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))];
+}
+
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--primary))] text-white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* ========================================
+   LIGHT THEME SPECIFIC STYLES
+   ======================================== */
+
+/* Cards con sombras suaves en tema claro */
+.light .card {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.light .card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Fix color de texto en inputs para tema claro */
+.light .input,
+.light input,
+.light select,
+.light textarea {
+  color: hsl(var(--foreground));
+  background-color: hsl(0 0% 100%);
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Botón secundario con texto oscuro en tema claro */
+.light .btn-secondary {
+  color: hsl(var(--secondary-foreground));
+  background-color: hsl(var(--secondary));
+}
+
+.light .btn-secondary:hover {
+  background-color: hsl(220 14% 92%);
+}
+
+/* Tablas con mejor estilo en tema claro */
+.light table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.light th {
+  background-color: hsl(220 20% 97%);
+  color: hsl(220 30% 35%);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.light tr:nth-child(even) {
+  background-color: hsl(220 20% 98%);
+}
+
+.light tbody tr:hover {
+  background-color: hsl(217 91% 97%);
+}
+
+.light td {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Badges mejorados para tema claro */
+.light .badge {
+  font-weight: 600;
+}
+
+/* Mejor scrollbar para tema claro */
+.light ::-webkit-scrollbar-track {
+  background: hsl(220 20% 96%);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: hsl(220 13% 80%);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 13% 65%);
+}
+
+/* Stats cards en tema claro */
+.light [class*="stat-card"],
+.light [class*="stats-card"] {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Dropdown menus en tema claro */
+.light [class*="dropdown"],
+.light [class*="menu"],
+.light [role="menu"] {
+  background-color: hsl(0 0% 100%);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Focus states más visibles */
+.light input:focus,
+.light select:focus,
+.light textarea:focus,
+.light button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(221 83% 53% / 0.2);
+}
+
+/* Links en tema claro */
+.light a {
+  color: hsl(221 83% 53%);
+}
+
+.light a:hover {
+  color: hsl(221 83% 45%);
+}
+
+/* ========================================
+   CRITICAL: Fix text-white in light theme
+   Override Tailwind's text-white class
+   ======================================== */
+
+/* Forzar texto oscuro en tema claro para elementos generales */
+.light .text-white {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Mantener texto blanco en botones con fondo de color */
+.light .btn-primary .text-white,
+.light .btn-danger .text-white,
+.light .bg-blue-600 .text-white,
+.light .bg-red-600 .text-white,
+.light .bg-green-500 .text-white,
+.light .bg-emerald-500 .text-white,
+.light .bg-purple-500 .text-white,
+.light .bg-orange-500 .text-white,
+.light .bg-gray-500 .text-white,
+.light [class*="bg-gradient"] .text-white,
+.light [class*="from-"] .text-white {
+  color: white !important;
+}
+
+/* Fix para badges con fondo de color */
+.light .badge,
+.light [class*="rounded-full"][class*="bg-"] {
+  color: white !important;
+}
+
+/* Fix para headers y títulos */
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light h5,
+.light h6 {
+  color: hsl(var(--foreground));
+}
+
+/* Fix para textos grises - hacerlos más oscuros en tema claro */
+.light .text-gray-300 {
+  color: hsl(220 10% 35%) !important;
+}
+
+.light .text-gray-400 {
+  color: hsl(220 10% 40%) !important;
+}
+
+.light .text-gray-500 {
+  color: hsl(220 10% 50%) !important;
+}
+
+.light .text-gray-600 {
+  color: hsl(220 10% 60%) !important;
+}
+
+/* Fix específico para cards con gradiente en tema claro */
+.light .card[class*="from-"] p,
+.light .card[class*="bg-gradient"] p {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Sidebar mantiene colores oscuros - NO aplicar cambios */
+.light aside,
+.light [class*="sidebar"],
+.light nav {
+  --force-dark: true;
+}
+
+.light aside .text-white,
+.light aside h1,
+.light aside span,
+.light [class*="sidebar"] .text-white {
+  color: inherit !important;
+}
+
+/* Progress bar background en tema claro */
+.light .bg-gray-700 {
+  background-color: hsl(220 13% 85%) !important;
+}
+
+/* Fix para el Header component */
+.light header .text-white,
+.light .header .text-white {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Mejora para stat cards en tema claro */
+.light .card .text-3xl,
+.light .card .text-2xl,
+.light .card .text-xl {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Input search icon */
+.light .text-gray-400[class*="absolute"] {
+  color: hsl(220 10% 50%) !important;
+}
